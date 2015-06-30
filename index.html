@@ -1,0 +1,348 @@
+<!doctype html>
+<html>
+<head>
+	<title>Conway's Game of Life !!</title>
+	<style>
+
+	</style>
+</head>
+
+<body>
+
+<div id="pattern-name"> Conway's Game of Life - <strong>Blinker Pattern</strong> </div>
+<canvas id="game-of-life" width="500px" height="500px" style="border: thin solid grey;"></canvas>
+
+
+<script type="text/javascript">
+
+	( function () {
+
+		var canvas = document.getElementById("game-of-life"),
+			context = canvas.getContext("2d");
+
+		var LifeGame = {
+
+			world: {
+				width: 500,
+				height: 500,
+				cellSize: 10
+			},
+
+			state: {
+				// grids in previous tick
+				previous: [],
+				// grids in current tick
+				current: []
+			},
+
+			totalGrids: 0,
+
+			// collection of grids
+			grids: [],
+
+			start: function () {
+				console.log("Conway's game of life");
+
+				this.totalGrids = (this.world.width/this.world.cellSize) * (this.world.height/this.world.cellSize);
+				console.log("Total Cells : ", this.totalGrids); 
+
+				// this.drawGrids();
+				// initialize the grids
+				this.initGrids();
+
+				// set the initial state
+				this.setInitialState();
+
+				// set the tick
+				this.startTicking();
+
+			},
+
+			// use this if we have draw grid like structures
+			drawGrids: function () {
+
+				var width = this.world.width,
+					height = this.world.height,
+					cellSize = this.world.cellSize;
+
+				for (var x = 0; x < width; x += cellSize) {
+					context.moveTo(x, 0);
+					context.lineTo(x, height);
+				}
+
+				for (var y = 0; y < height; y += cellSize) {
+					context.moveTo(0, y);
+					context.lineTo(width, y);
+				}
+
+				// stroke the canvas
+				context.strokeStyle = "#ddd";
+				context.lineWidth = 1;
+				context.stroke();
+			},
+
+			initGrids: function () {
+
+				for (var i = 0; i < (this.world.width/this.world.cellSize); i++ ) {
+
+					for (var j = 0; j < (this.world.height/this.world.cellSize); j++) {
+						this.grids.push( new Grid( i, j ) );
+					}
+
+				}
+				// assign the grids to the current state
+				this.state.current = this.grids;
+
+			},
+
+			setInitialState: function () {
+
+				// patterns ref: https://en.wikipedia.org/wiki/Conway's_Game_of_Life#Examples_of_patterns
+				// for now the blinker pattern is set
+				console.log("Initializing Blinker Pattern");
+				var coords = [ 
+								{ x: 25, y: 25 },
+								{ x: 25, y: 24 },
+								{ x: 25, y: 26 }
+							 ];
+
+				for (var i = 0; i < coords.length; i++) {
+					var grid_id = coords[i].x * (this.world.width/this.world.cellSize) + coords[i].y;
+					this.state.current[grid_id].giveLife();
+				}
+
+			},
+
+			startTicking: function () {
+				this.timeout = 1000; // runs every second
+				// /*
+				this.timer = setInterval( function () {
+					LifeGame.tick.call( LifeGame );
+				}, this.timeout );
+				// */
+			},
+
+			tick: function () {
+				console.log("ticking", new Date());
+				// update the previous state
+				this.state.previous = this.state.current;
+				// flush the current state
+				this.state.current = [];
+
+				// calculate the current state from the previous state
+				for (var i = 0; i < (this.world.width/this.world.cellSize); i++ ) {
+
+					for (var j = 0; j < (this.world.height/this.world.cellSize); j++) {
+						//console.log("i, j", i, j);
+						var grid = new Grid( i, j );
+						// apply the rules to the new grid
+						grid.applyRules();
+						// add the grid to the current state
+						this.state.current.push( grid );
+					}
+
+				}
+
+			}
+
+		};
+
+		LifeGame.start();
+
+		// var grid = LifeGame.state.current[1275];
+		// grid.applyRules();
+		// console.log( grid.alive );
+
+		// Grid Class
+		function Grid (x, y) {
+			
+			var width = 500,
+				height = 500,
+				cellSize = 10;
+
+			// assign its positions
+			this.x = x;
+			this.y = y;
+
+			// returns the grid Id
+			this.getGridId = function () {
+				return (this.x)*(width/cellSize) + this.y;
+			};
+
+			// set its state; 
+			this.alive = false;
+
+			// count of surrounding alive neighbours (calculated from previous tick state)
+			this.aliveNeighbours = 0;
+
+			// runs a check of neighbours from the state of grids in previous tick
+			this.checkNeighbours = function () {
+
+				// 0 => North, 1 => South, 2 => East, 3 => West
+				// 4 => NorthEast, 5 => NorthWest, 6 => SouthEast, 7 => SouthWest
+				// for example, the return value of first grid will be [false, true, true, false, false, false, true, false]
+
+				var status = [];
+				// north
+				var check = (this.y - 1) < 0 ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x)*(width/cellSize) + (this.y - 1);
+					status[0] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[0] = false;
+				}
+
+				// south
+				check = ((this.y + 1) >= (height/cellSize)) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x)*(width/cellSize) + (this.y + 1);
+					status[1] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[1] = false;
+				}
+
+				// east
+				check = ((this.x + 1) >= (width/cellSize)) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x + 1)*(width/cellSize) + (this.y);
+					status[2] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[2] = false;
+				}
+
+				// west
+				check = (this.x - 1) < 0 ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x - 1)*(width/cellSize) + (this.y);
+					status[3] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[3] = false;
+				}
+
+
+				// north east
+				check = ( (this.x + 1 >= (width/cellSize)) || (this.y - 1) < 0 ) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x + 1)*(width/cellSize) + (this.y - 1);
+					status[4] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[4] = false;
+				}
+
+				// north west
+				check = ( (this.x - 1 < 0) || (this.y - 1) < 0 ) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x - 1)*(width/cellSize) + (this.y - 1);
+					status[5] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[5] = false;
+				}
+
+				// south east
+				check = ( (this.x + 1 >= (width/cellSize)) || (this.y + 1) >= (height/cellSize) ) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x + 1)*(width/cellSize) + (this.y + 1);
+					status[6] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[6] = false;
+				}
+
+				// south west
+				check = ( (this.x - 1 < 0) || (this.y + 1) >= (height/cellSize) ) ? false : true;
+				if (check) {
+					// get the life status
+					var grid_id = (this.x - 1)*(width/cellSize) + (this.y + 1);
+					status[7] = LifeGame.state.previous[grid_id].alive;
+				} else {
+					// not alive
+					status[7] = false;
+				}
+
+				// console.log("status for Grid - ", this.x, this.y);
+				// console.log(status);
+
+				var total_alive = 0,
+					i = -1;
+
+				while (i++ < 8) {
+					if (status[i]) {
+						total_alive++;
+					}
+				}
+				
+				//return status;
+				this.aliveNeighbours = total_alive;
+
+			};
+
+			// applies the game of life rules
+			this.applyRules = function () {
+
+				// calculate the alive neighbours from the previous state
+				this.checkNeighbours();
+
+				var previousAlive = LifeGame.state.previous[ this.getGridId() ].alive;
+
+				// apply the rules sequentially
+				// rule 1:
+				// Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+				if (previousAlive && this.aliveNeighbours < 2) {
+					this.alive = false;
+				} 
+				// rule 2:
+				// Any live cell with two or three live neighbours lives on to the next generation.
+				else if (previousAlive && (this.aliveNeighbours == 2 || this.aliveNeighbours == 3)) {
+					this.alive = true;
+				}
+				// rule 3:
+				// Any live cell with more than three live neighbours dies, as if by overcrowding.
+				else if (previousAlive && this.aliveNeighbours > 3) {
+					this.alive = false;
+				} 
+				// rule 4:
+				// Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+				else if (!previousAlive && this.aliveNeighbours == 3) {
+					this.alive = true;
+				}
+
+				// console.log("Rule applied for ", this.x, this.y, this.alive);
+
+				// finally draw or clear the grid based on alive status
+				if (this.alive) {
+					context.fillRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+				} else {
+					context.clearRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+				}
+
+			};
+
+			this.giveLife = function () {
+				// change the alive status
+				this.alive = true;
+				// paint the cell
+				context.fillRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+			};
+
+		}
+
+	} () );
+
+</script>
+	
+</body>
+
+</html>
