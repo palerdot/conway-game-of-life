@@ -12,6 +12,70 @@
 <div id="pattern-name"> Conway's Game of Life - <strong>Blinker Pattern</strong> </div>
 <canvas id="game-of-life" width="500px" height="500px" style="border: thin solid grey;"></canvas>
 
+<script>
+	
+// requestAnimationFrame() shim by Paul Irish
+// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+window.requestAnimFrame = (function() {
+	return  window.requestAnimationFrame       || 
+			window.webkitRequestAnimationFrame || 
+			window.mozRequestAnimationFrame    || 
+			window.oRequestAnimationFrame      || 
+			window.msRequestAnimationFrame     || 
+			function(/* function */ callback, /* DOMElement */ element){
+				window.setTimeout(callback, 1000 / 60);
+			};
+})();
+
+// set interval equivalent with requestAnimationFrame
+
+/**
+* Behaves the same as setInterval except uses requestAnimationFrame() where possible for better performance
+* @param {function} fn The callback function
+* @param {int} delay The delay in milliseconds
+*/
+window.requestInterval = function(fn, delay) {
+	if( !window.requestAnimationFrame       && 
+		!window.webkitRequestAnimationFrame && 
+		!(window.mozRequestAnimationFrame && window.mozCancelRequestAnimationFrame) && // Firefox 5 ships without cancel support
+		!window.oRequestAnimationFrame      && 
+		!window.msRequestAnimationFrame)
+			return window.setInterval(fn, delay);
+			
+	var start = new Date().getTime(),
+		handle = new Object();
+		
+	function loop() {
+		var current = new Date().getTime(),
+			delta = current - start;
+			
+		if(delta >= delay) {
+			fn.call();
+			start = new Date().getTime();
+		}
+ 
+		handle.value = requestAnimFrame(loop);
+	};
+	
+	handle.value = requestAnimFrame(loop);
+	return handle;
+}
+ 
+/**
+ * Behaves the same as clearInterval except uses cancelRequestAnimationFrame() where possible for better performance
+ * @param {int|object} fn The callback function
+ */
+    window.clearRequestInterval = function(handle) {
+    window.cancelAnimationFrame ? window.cancelAnimationFrame(handle.value) :
+    window.webkitCancelAnimationFrame ? window.webkitCancelAnimationFrame(handle.value) :
+    window.webkitCancelRequestAnimationFrame ? window.webkitCancelRequestAnimationFrame(handle.value) : /* Support for legacy API */
+    window.mozCancelRequestAnimationFrame ? window.mozCancelRequestAnimationFrame(handle.value) :
+    window.oCancelRequestAnimationFrame	? window.oCancelRequestAnimationFrame(handle.value) :
+    window.msCancelRequestAnimationFrame ? window.msCancelRequestAnimationFrame(handle.value) :
+    clearInterval(handle);
+};
+
+</script>
 
 <script type="text/javascript">
 
@@ -46,7 +110,7 @@
 				this.totalGrids = (this.world.width/this.world.cellSize) * (this.world.height/this.world.cellSize);
 				console.log("Total Cells : ", this.totalGrids); 
 
-				// this.drawGrids();
+				this.drawGrids();
 				// initialize the grids
 				this.initGrids();
 
@@ -115,11 +179,15 @@
 
 			startTicking: function () {
 				this.timeout = 1000; // runs every second
-				// /*
+				/*
 				this.timer = setInterval( function () {
 					LifeGame.tick.call( LifeGame );
 				}, this.timeout );
-				// */
+				*/
+				// setinterval with requestAnimationFrame
+				this.timer = window.requestInterval( function () {
+					LifeGame.tick.call( LifeGame );
+				}, this.timeout );
 			},
 
 			tick: function () {
@@ -148,10 +216,6 @@
 		};
 
 		LifeGame.start();
-
-		// var grid = LifeGame.state.current[1275];
-		// grid.applyRules();
-		// console.log( grid.alive );
 
 		// Grid Class
 		function Grid (x, y) {
@@ -321,20 +385,38 @@
 
 				// console.log("Rule applied for ", this.x, this.y, this.alive);
 
+				var gridBorderWidth = 0.5;
+
 				// finally draw or clear the grid based on alive status
 				if (this.alive) {
-					context.fillRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+					// fill Rect only within the grid borders
+					context.fillRect( this.x*cellSize + gridBorderWidth, this.y*cellSize + gridBorderWidth, 
+										cellSize - gridBorderWidth, cellSize - gridBorderWidth );
 				} else {
-					context.clearRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+					// clear the rectangle by keeping the grid border
+					context.clearRect( this.x*cellSize + gridBorderWidth, this.y*cellSize + gridBorderWidth, 
+										cellSize - gridBorderWidth, cellSize - gridBorderWidth );
 				}
+
+				// stroke the rect borders to keep the grid structure
+				context.strokeStyle = "#ddd";
+				context.strokeRect( this.x*cellSize + gridBorderWidth, this.y*cellSize + gridBorderWidth, 
+									cellSize - gridBorderWidth, cellSize - gridBorderWidth );
 
 			};
 
 			this.giveLife = function () {
 				// change the alive status
 				this.alive = true;
+
+				var gridBorderWidth = 0.5;
 				// paint the cell
-				context.fillRect( this.x*cellSize, this.y*cellSize, cellSize, cellSize );
+				context.fillRect( this.x*cellSize + gridBorderWidth, this.y*cellSize + gridBorderWidth, 
+										cellSize - gridBorderWidth, cellSize - gridBorderWidth );
+				// stroke the rect borders to keep the grid structure
+				context.strokeStyle = "#ddd";
+				context.strokeRect( this.x*cellSize + gridBorderWidth, this.y*cellSize + gridBorderWidth, 
+									cellSize - gridBorderWidth, cellSize - gridBorderWidth );
 			};
 
 		}
